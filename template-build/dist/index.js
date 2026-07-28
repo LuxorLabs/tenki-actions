@@ -31127,7 +31127,7 @@ class TenkiCommandError extends Error {
 async function requireTenki() {
     const found = await which("tenki", false);
     if (!found) {
-        throw new Error("tenki not found on PATH; add 'TenkiCloud/actions/setup-cli@v1' before this action");
+        throw new Error("tenki not found on PATH; add 'LuxorLabs/tenki-actions/setup-cli@v1' before this action");
     }
 }
 async function tenkiJSON(args) {
@@ -31167,8 +31167,12 @@ function parseJSON(stdout) {
 
 
 
+// The CLI forwards these as ephemeral build secrets even when absent from
+// build-secret-env, so register them for masking to match.
+const AUTO_SECRET_ENV = ["GIT_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"];
 async function run() {
     maskAuth();
+    maskAutoDetectedSecrets();
     await requireTenki();
     const inputs = readInputs();
     const args = [
@@ -31219,6 +31223,15 @@ function maskAuth() {
         core_setSecret(token);
     if (apiKey)
         core_setSecret(apiKey);
+}
+function maskAutoDetectedSecrets() {
+    // Mask-only, never appended to build-secret-env; non-empty check mirrors the
+    // CLI so we register exactly what it forwards.
+    for (const name of AUTO_SECRET_ENV) {
+        const value = process.env[name];
+        if (value)
+            core_setSecret(value);
+    }
 }
 function setOutputs(build) {
     setOutput("image", build.image_digest_ref ?? "");

@@ -8,6 +8,7 @@ import * as path from "node:path";
 const TOOL_NAME = "tenki";
 const INSTALL_URL = "https://tenki.cloud/install.sh";
 const SUPPORTED_PLATFORMS = new Set(["linux/x64", "darwin/arm64"]);
+const SEMVER = /^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(\+[A-Za-z0-9.]+)?$/;
 
 async function run(): Promise<void> {
   const platform = `${os.platform()}/${os.arch()}`;
@@ -18,6 +19,11 @@ async function run(): Promise<void> {
 
   const requestedVersion = core.getInput("version") || "latest";
   const normalizedVersion = requestedVersion.replace(/^v/, "");
+  // normalizedVersion reaches a bash -c command, so reject anything but a
+  // strict semver to keep shell metacharacters out.
+  if (requestedVersion !== "latest" && !SEMVER.test(normalizedVersion)) {
+    throw new Error(`invalid version ${JSON.stringify(requestedVersion)}; expected "latest" or a semver like 1.2.3`);
+  }
   if (requestedVersion !== "latest") {
     const cached = tc.find(TOOL_NAME, normalizedVersion);
     if (cached) {
@@ -29,10 +35,13 @@ async function run(): Promise<void> {
   }
 
   const installDir = mkdtempSync(path.join(os.tmpdir(), "tenki-cli-install-"));
-  const command =
+  const pipeline =
     requestedVersion === "latest"
       ? `curl -fsSL ${INSTALL_URL} | bash`
       : `curl -fsSL ${INSTALL_URL} | bash -s -- --version ${normalizedVersion}`;
+  // Without pipefail a failed fetch (curl -f) is masked by bash's exit 0 and
+  // only surfaces later as a confusing "tenki: not found".
+  const command = `set -o pipefail; ${pipeline}`;
 
   await exec.exec("bash", ["-c", command], {
     env: { ...process.env, TENKI_INSTALL_DIR: installDir },
