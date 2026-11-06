@@ -9,6 +9,8 @@ inputs:
 outputs:
   tenki-version:
     description: Resolved version installed
+  luxor-version:
+    description: Resolved version installed (same value as tenki-version)
 runs:
   using: node24
   main: dist/index.js

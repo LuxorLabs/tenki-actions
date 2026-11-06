@@ -49,6 +49,7 @@ Use the output in later steps:
 | Output | Description |
 | --- | --- |
 | `tenki-version` | Resolved CLI version, for example `0.7.0`. Always without a leading `v`. |
+| `luxor-version` | Same value as `tenki-version`. |
 
 ## Supported runners
 

@@ -1,5 +1,6 @@
 import * as exec from "@actions/exec";
 import * as io from "@actions/io";
+import { cliEnv } from "./auth.js";
 
 export interface TemplateBuildResult {
   template_id: string;
@@ -36,7 +37,7 @@ export async function tenkiJSON<T>(args: string[]): Promise<T> {
   const exitCode = await exec.exec("tenki", args, {
     silent: true,
     ignoreReturnCode: true,
-    env: process.env as Record<string, string>,
+    env: cliEnv(),
     listeners: {
       stdout: (data) => {
         stdout += data.toString();

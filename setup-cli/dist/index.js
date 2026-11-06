@@ -34465,6 +34465,8 @@ const TOOL_NAME = "tenki";
 const INSTALL_URL = "https://tenki.cloud/install.sh";
 const SUPPORTED_PLATFORMS = new Set(["linux/x64", "darwin/arm64"]);
 const SEMVER = /^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(\+[A-Za-z0-9.]+)?$/;
+// Matches both `tenki version X` and the rebranded `luxor version X`.
+const VERSION_LINE = /(?:tenki|luxor)\s+version\s+(\S+)/i;
 async function run() {
     const platform = `${external_node_os_namespaceObject.platform()}/${external_node_os_namespaceObject.arch()}`;
     if (!SUPPORTED_PLATFORMS.has(platform)) {
@@ -34482,7 +34484,7 @@ async function run() {
         const cached = find(TOOL_NAME, normalizedVersion);
         if (cached) {
             addPath(cached);
-            setOutput("tenki-version", normalizedVersion);
+            setVersionOutputs(normalizedVersion);
             info(`tenki ${normalizedVersion} restored from cache`);
             return;
         }
@@ -34505,8 +34507,13 @@ async function run() {
     else {
         addPath(installDir);
     }
-    setOutput("tenki-version", resolvedVersion);
+    setVersionOutputs(resolvedVersion);
     info(`tenki ${resolvedVersion} installed`);
+}
+// luxor-version mirrors tenki-version so workflows can move to the new name early.
+function setVersionOutputs(version) {
+    setOutput("tenki-version", version);
+    setOutput("luxor-version", version);
 }
 async function installedVersion(binaryPath, requestedVersion) {
     let stdout = "";
@@ -34517,7 +34524,7 @@ async function installedVersion(binaryPath, requestedVersion) {
             },
         },
     });
-    const match = stdout.match(/tenki\s+version\s+(\S+)/i);
+    const match = stdout.match(VERSION_LINE);
     if (match?.[1]) {
         return match[1].replace(/^v/, "");
     }

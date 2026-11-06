@@ -31057,6 +31057,25 @@ function getIDToken(aud) {
  */
 
 //# sourceMappingURL=core.js.map
+;// CONCATENATED MODULE: ./src/auth.ts
+const CREDENTIALS = ["AUTH_TOKEN", "API_KEY"];
+/**
+ * Environment for the tenki CLI with LUXORAI_* credentials taking precedence:
+ * when any LUXORAI_* credential is set it replaces every TENKI_* one, under the
+ * TENKI_* names released CLIs read.
+ */
+function cliEnv(env = process.env) {
+    const out = { ...env };
+    const luxor = CREDENTIALS.filter((name) => env[`LUXORAI_${name}`]?.trim());
+    if (luxor.length === 0)
+        return out;
+    for (const name of CREDENTIALS)
+        delete out[`TENKI_${name}`];
+    for (const name of luxor)
+        out[`TENKI_${name}`] = env[`LUXORAI_${name}`].trim();
+    return out;
+}
+
 ;// CONCATENATED MODULE: ./src/inputs.ts
 
 function readInputs() {
@@ -31116,6 +31135,7 @@ function parseOptionalBooleanInput(value) {
 ;// CONCATENATED MODULE: ./src/tenki.ts
 
 
+
 class TenkiCommandError extends Error {
     output;
     constructor(message, output) {
@@ -31136,7 +31156,7 @@ async function tenkiJSON(args) {
     const exitCode = await exec_exec("tenki", args, {
         silent: true,
         ignoreReturnCode: true,
-        env: process.env,
+        env: cliEnv(),
         listeners: {
             stdout: (data) => {
                 stdout += data.toString();
@@ -31164,6 +31184,7 @@ function parseJSON(stdout) {
 }
 
 ;// CONCATENATED MODULE: ./src/main.ts
+
 
 
 
@@ -31214,10 +31235,11 @@ async function run() {
     }
 }
 function maskAuth() {
-    const token = process.env.TENKI_AUTH_TOKEN?.trim();
-    const apiKey = process.env.TENKI_API_KEY?.trim();
+    const env = cliEnv();
+    const token = env.TENKI_AUTH_TOKEN?.trim();
+    const apiKey = env.TENKI_API_KEY?.trim();
     if (!token && !apiKey) {
-        throw new Error("missing TENKI_AUTH_TOKEN or TENKI_API_KEY env var");
+        throw new Error("missing LUXORAI_AUTH_TOKEN, LUXORAI_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var");
     }
     if (token)
         core_setSecret(token);
