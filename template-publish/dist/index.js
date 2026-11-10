@@ -30921,6 +30921,22 @@ function getIDToken(aud) {
  */
 
 //# sourceMappingURL=core.js.map
+;// CONCATENATED MODULE: ./src/auth.ts
+const CREDENTIALS = ["AUTH_TOKEN", "API_KEY"];
+/**
+ * Environment for the tenki CLI, resolving each credential on its own: a non-empty
+ * LUXORAI_<name> wins over TENKI_<name>, passed under the TENKI_* name released CLIs read.
+ */
+function cliEnv(env = process.env) {
+    const out = { ...env };
+    for (const name of CREDENTIALS) {
+        const luxor = env[`LUXORAI_${name}`]?.trim();
+        if (luxor)
+            out[`TENKI_${name}`] = luxor;
+    }
+    return out;
+}
+
 ;// CONCATENATED MODULE: ./src/env.ts
 
 function collectForwardedEnv(input, prefix) {
@@ -30950,6 +30966,7 @@ function collectForwardedEnv(input, prefix) {
 ;// CONCATENATED MODULE: ./src/tenki.ts
 
 
+
 async function requireTenki() {
     const found = await which("tenki", false);
     if (!found) {
@@ -30962,7 +30979,7 @@ async function tenkiJSON(args, env = {}) {
     const exitCode = await exec_exec("tenki", args, {
         silent: true,
         ignoreReturnCode: true,
-        env: { ...process.env, ...env },
+        env: { ...cliEnv(), ...env },
         listeners: {
             stdout: (data) => {
                 stdout += data.toString();
@@ -31127,12 +31144,13 @@ async function resolveSetupScript() {
 
 
 
+
 async function run() {
     warning("template-publish is deprecated; migrate to LuxorLabs/tenki-actions/template-build@v1");
-    const token = process.env.TENKI_AUTH_TOKEN;
+    const token = cliEnv().TENKI_AUTH_TOKEN;
     if (!token?.trim()) {
-        core_error("missing TENKI_AUTH_TOKEN env var");
-        throw new Error("missing TENKI_AUTH_TOKEN env var");
+        core_error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+        throw new Error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
     }
     core_setSecret(token);
     await requireTenki();

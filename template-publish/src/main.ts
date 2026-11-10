@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { cliEnv } from "./auth.js";
 import { collectForwardedEnv } from "./env.js";
 import {
   type BuildResult,
@@ -14,10 +15,10 @@ import { readInputs, type Inputs } from "./inputs.js";
 async function run(): Promise<void> {
   core.warning("template-publish is deprecated; migrate to LuxorLabs/tenki-actions/template-build@v1");
 
-  const token = process.env.TENKI_AUTH_TOKEN;
+  const token = cliEnv().TENKI_AUTH_TOKEN;
   if (!token?.trim()) {
-    core.error("missing TENKI_AUTH_TOKEN env var");
-    throw new Error("missing TENKI_AUTH_TOKEN env var");
+    core.error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+    throw new Error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
   }
   core.setSecret(token);
 

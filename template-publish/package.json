@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.22.0",
   "scripts": {
     "build": "ncc build src/main.ts -o dist --source-map",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@actions/core": "3.0.1",

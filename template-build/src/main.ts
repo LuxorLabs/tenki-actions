@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { cliEnv } from "./auth.js";
 import { readInputs } from "./inputs.js";
 import { requireTenki, TenkiCommandError, tenkiJSON, type TemplateBuildResult } from "./tenki.js";
 
@@ -49,10 +50,11 @@ async function run(): Promise<void> {
 }
 
 function maskAuth(): void {
-  const token = process.env.TENKI_AUTH_TOKEN?.trim();
-  const apiKey = process.env.TENKI_API_KEY?.trim();
+  const env = cliEnv();
+  const token = env.TENKI_AUTH_TOKEN?.trim();
+  const apiKey = env.TENKI_API_KEY?.trim();
   if (!token && !apiKey) {
-    throw new Error("missing TENKI_AUTH_TOKEN or TENKI_API_KEY env var");
+    throw new Error("missing LUXORAI_AUTH_TOKEN, LUXORAI_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var");
   }
   if (token) core.setSecret(token);
   if (apiKey) core.setSecret(apiKey);
