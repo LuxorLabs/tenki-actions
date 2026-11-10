@@ -231,7 +231,7 @@ The action validates inputs before invoking `tenki`:
 - Non-create modes require `template-id`.
 - `update` requires at least one config field.
 - `build-only` and `publish-only` reject config fields.
-- Missing `TENKI_AUTH_TOKEN` fails before any CLI call. `LUXORAI_AUTH_TOKEN` is also accepted and takes precedence.
+- Missing `TENKI_AUTH_TOKEN` fails before any CLI call. `LUXORAI_AUTH_TOKEN` is also accepted and, when non-empty, takes precedence over `TENKI_AUTH_TOKEN`.
 - Missing `tenki` fails with: `tenki not found on PATH; add 'LuxorLabs/tenki-actions/setup-cli@v1' step before this one`.
 
 If build fails, the action exits non-zero and does not call publish. Existing publications stay active.

@@ -68,11 +68,28 @@ const succeeded = {
   image_digest_ref: "node-api@sha256:abc",
 };
 
-test("LUXORAI_API_KEY replaces every TENKI_* credential for the CLI", () => {
+test("LUXORAI_API_KEY wins over TENKI_API_KEY and keeps TENKI_AUTH_TOKEN", () => {
   const run = runAction(succeeded, 0, { LUXORAI_API_KEY: "lx-secret", TENKI_AUTH_TOKEN: "legacy-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth, "TENKI_AUTH_TOKEN=\nTENKI_API_KEY=lx-secret\n");
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=lx-secret\n");
   assert.match(run.result.stdout, /::add-mask::lx-secret/);
+  assert.match(run.result.stdout, /::add-mask::legacy-token/);
+});
+
+test("each LUXORAI_* credential replaces its TENKI_* counterpart", () => {
+  const run = runAction(succeeded, 0, {
+    LUXORAI_AUTH_TOKEN: "lx-token",
+    LUXORAI_API_KEY: "lx-secret",
+    TENKI_AUTH_TOKEN: "legacy-token",
+  });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=lx-token\nTENKI_API_KEY=lx-secret\n");
+});
+
+test("empty LUXORAI_* credentials fall back to TENKI_*", () => {
+  const run = runAction(succeeded, 0, { LUXORAI_API_KEY: " ", LUXORAI_AUTH_TOKEN: "", TENKI_AUTH_TOKEN: "legacy-token" });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=api-secret\n");
 });
 
 test("TENKI_* credentials pass through unchanged without LUXORAI_*", () => {

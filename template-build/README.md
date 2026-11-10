@@ -76,4 +76,4 @@ Use the immutable output directly in later jobs:
 
 ## Authentication
 
-Set either `TENKI_API_KEY` or `TENKI_AUTH_TOKEN` in `env`; do not pass credentials through `with:`. `TENKI_AUTH_TOKEN` takes precedence when both are set. `LUXORAI_API_KEY` and `LUXORAI_AUTH_TOKEN` are also accepted; when either is set it is used instead of the `TENKI_*` credentials.
+Set either `TENKI_API_KEY` or `TENKI_AUTH_TOKEN` in `env`; do not pass credentials through `with:`. `TENKI_AUTH_TOKEN` takes precedence when both are set. `LUXORAI_API_KEY` and `LUXORAI_AUTH_TOKEN` are also accepted; each one, when non-empty, replaces its `TENKI_*` counterpart (`LUXORAI_API_KEY` over `TENKI_API_KEY`, `LUXORAI_AUTH_TOKEN` over `TENKI_AUTH_TOKEN`), and the resolved auth token still takes precedence over the resolved API key.
