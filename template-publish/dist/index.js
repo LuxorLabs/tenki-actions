@@ -31162,8 +31162,8 @@ async function run() {
     const token = env.TENKI_AUTH_TOKEN?.trim();
     const apiKey = env.TENKI_API_KEY?.trim();
     if (!token && !apiKey) {
-        core_error("missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
-        throw new Error("missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+        core_error("missing LUXOR_AUTH_TOKEN, LUXOR_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var");
+        throw new Error("missing LUXOR_AUTH_TOKEN, LUXOR_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var");
     }
     if (token)
         core_setSecret(token);

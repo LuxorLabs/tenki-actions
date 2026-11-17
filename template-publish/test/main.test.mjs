@@ -38,7 +38,7 @@ test("LUXOR_AUTH_TOKEN wins over LUXOR_API_KEY and TENKI_API_KEY", () => {
 test("fails before any CLI call without a credential", () => {
   const run = runAction({});
   assert.equal(run.result.status, 1);
-  assert.match(run.result.stdout, /missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN/);
+  assert.match(run.result.stdout, /missing LUXOR_AUTH_TOKEN, LUXOR_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var/);
   assert.deepEqual(run.auth, []);
 });
 
@@ -57,7 +57,7 @@ test("LUXOR_API_KEY without an lx_ or tk_ prefix is ignored in favor of TENKI_AP
 test("non-prefixed LUXOR_API_KEY alone fails as a missing credential", () => {
   const run = runAction({ LUXOR_API_KEY: "pool-key-123" });
   assert.equal(run.result.status, 1);
-  assert.match(run.result.stdout, /missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN/);
+  assert.match(run.result.stdout, /missing LUXOR_AUTH_TOKEN, LUXOR_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var/);
   assert.deepEqual(run.auth, []);
 });
 

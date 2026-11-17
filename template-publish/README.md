@@ -17,7 +17,7 @@ Drives sandbox template publishing through the `tenki` CLI. Add `setup-cli` firs
 ## Prerequisites
 
 - `tenki` is available on `$PATH`. The recommended setup is `LuxorLabs/tenki-actions/setup-cli@v1`.
-- `TENKI_AUTH_TOKEN` is set in `env`.
+- A credential is set in `env`: `LUXOR_AUTH_TOKEN`, `LUXOR_API_KEY`, `TENKI_AUTH_TOKEN` or `TENKI_API_KEY`.
 - For `mode: update`, `build-only`, and `publish-only`, you already know the template ID.
 
 ## One-time bootstrap (`mode: create`)
