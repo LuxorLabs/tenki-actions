@@ -8,11 +8,11 @@ import { fileURLToPath } from "node:url";
 
 const actionDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("LUXOR_API_KEY does not drop TENKI_AUTH_TOKEN", () => {
+test("LUXOR_API_KEY wins over TENKI_AUTH_TOKEN", () => {
   const run = runAction({ LUXOR_API_KEY: "lx_secret", TENKI_AUTH_TOKEN: "legacy-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth[0], "TENKI_AUTH_TOKEN=legacy-token TENKI_API_KEY=lx_secret");
-  assert.match(run.result.stdout, /::add-mask::legacy-token/);
+  assert.equal(run.auth[0], "TENKI_AUTH_TOKEN= TENKI_API_KEY=lx_secret");
+  assert.match(run.result.stdout, /::add-mask::lx_secret/);
   assert.match(run.outputs, /artifact-id<<ghadelimiter_[^\n]+\nart-1\n/);
 });
 
@@ -29,8 +29,14 @@ test("TENKI_AUTH_TOKEN passes through without LUXOR_*", () => {
   assert.equal(run.auth[0], "TENKI_AUTH_TOKEN=legacy-token TENKI_API_KEY=");
 });
 
-test("fails before any CLI call without an auth token", () => {
-  const run = runAction({ LUXOR_API_KEY: "lx_secret" });
+test("LUXOR_AUTH_TOKEN wins over LUXOR_API_KEY and TENKI_API_KEY", () => {
+  const run = runAction({ LUXOR_AUTH_TOKEN: "lx-token", LUXOR_API_KEY: "lx_secret", TENKI_API_KEY: "legacy-key" });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth[0], "TENKI_AUTH_TOKEN=lx-token TENKI_API_KEY=");
+});
+
+test("fails before any CLI call without a credential", () => {
+  const run = runAction({});
   assert.equal(run.result.status, 1);
   assert.match(run.result.stdout, /missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN/);
   assert.deepEqual(run.auth, []);
@@ -39,7 +45,7 @@ test("fails before any CLI call without an auth token", () => {
 test("LUXOR_API_KEY with a tk_ prefix is used", () => {
   const run = runAction({ LUXOR_API_KEY: " tk_secret ", TENKI_API_KEY: "legacy-key", TENKI_AUTH_TOKEN: "legacy-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth[0], "TENKI_AUTH_TOKEN=legacy-token TENKI_API_KEY=tk_secret");
+  assert.equal(run.auth[0], "TENKI_AUTH_TOKEN= TENKI_API_KEY=tk_secret");
 });
 
 test("LUXOR_API_KEY without an lx_ or tk_ prefix is ignored in favor of TENKI_API_KEY", () => {

@@ -31058,27 +31058,30 @@ function getIDToken(aud) {
 
 //# sourceMappingURL=core.js.map
 ;// CONCATENATED MODULE: ./src/auth.ts
-const CREDENTIALS = ["AUTH_TOKEN", "API_KEY"];
 const API_KEY_PREFIXES = ["lx_", "tk_"];
 /**
- * Environment for the tenki CLI, resolving each credential on its own: a non-empty
- * LUXOR_<name> wins over TENKI_<name>, passed under the TENKI_* name released CLIs read.
+ * Environment for the tenki CLI. Credentials resolve in the order LUXOR_AUTH_TOKEN,
+ * LUXOR_API_KEY, TENKI_AUTH_TOKEN, TENKI_API_KEY. A chosen LUXOR_* credential is passed
+ * under the TENKI_* name released CLIs read, with the other TENKI_* credential removed.
  */
 function cliEnv(env = process.env) {
     const out = { ...env };
-    for (const name of CREDENTIALS) {
-        const luxor = luxorCredential(env, name);
-        if (luxor)
-            out[`TENKI_${name}`] = luxor;
+    const token = env.LUXOR_AUTH_TOKEN?.trim();
+    const apiKey = luxorApiKey(env);
+    if (token) {
+        out.TENKI_AUTH_TOKEN = token;
+        delete out.TENKI_API_KEY;
+    }
+    else if (apiKey) {
+        out.TENKI_API_KEY = apiKey;
+        delete out.TENKI_AUTH_TOKEN;
     }
     return out;
 }
 // LUXOR_API_KEY is also the Luxor Mining Pool key name, so only lx_/tk_ values count as set.
-function luxorCredential(env, name) {
-    const value = env[`LUXOR_${name}`]?.trim();
-    if (name === "API_KEY" && !API_KEY_PREFIXES.some((prefix) => value?.startsWith(prefix)))
-        return undefined;
-    return value;
+function luxorApiKey(env) {
+    const value = env.LUXOR_API_KEY?.trim();
+    return API_KEY_PREFIXES.some((prefix) => value?.startsWith(prefix)) ? value : undefined;
 }
 
 ;// CONCATENATED MODULE: ./src/inputs.ts

@@ -68,22 +68,21 @@ const succeeded = {
   image_digest_ref: "node-api@sha256:abc",
 };
 
-test("LUXOR_API_KEY wins over TENKI_API_KEY and keeps TENKI_AUTH_TOKEN", () => {
+test("LUXOR_API_KEY wins over TENKI_AUTH_TOKEN and TENKI_API_KEY", () => {
   const run = runAction(succeeded, 0, { LUXOR_API_KEY: "lx_secret", TENKI_AUTH_TOKEN: "legacy-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=lx_secret\n");
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=\nTENKI_API_KEY=lx_secret\n");
   assert.match(run.result.stdout, /::add-mask::lx_secret/);
-  assert.match(run.result.stdout, /::add-mask::legacy-token/);
 });
 
-test("each LUXOR_* credential replaces its TENKI_* counterpart", () => {
+test("LUXOR_AUTH_TOKEN wins over every other credential", () => {
   const run = runAction(succeeded, 0, {
     LUXOR_AUTH_TOKEN: "lx-token",
     LUXOR_API_KEY: "lx_secret",
     TENKI_AUTH_TOKEN: "legacy-token",
   });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth, "TENKI_AUTH_TOKEN=lx-token\nTENKI_API_KEY=lx_secret\n");
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=lx-token\nTENKI_API_KEY=\n");
 });
 
 test("empty LUXOR_* credentials fall back to TENKI_*", () => {
@@ -112,6 +111,12 @@ test("LUXOR_API_KEY without an lx_ or tk_ prefix is ignored in favor of TENKI_AP
   assert.doesNotMatch(run.result.stdout, /::add-mask::pool-key-123/);
 });
 
+test("non-prefixed LUXOR_API_KEY leaves TENKI_AUTH_TOKEN and TENKI_API_KEY in place", () => {
+  const run = runAction(succeeded, 0, { LUXOR_API_KEY: "pool-key-123", TENKI_AUTH_TOKEN: "legacy-token" });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=api-secret\n");
+});
+
 test("non-prefixed LUXOR_API_KEY alone fails as a missing credential", () => {
   const run = runAction(succeeded, 0, { LUXOR_API_KEY: "pool-key-123", TENKI_API_KEY: "" });
   assert.equal(run.result.status, 1);
@@ -122,7 +127,7 @@ test("non-prefixed LUXOR_API_KEY alone fails as a missing credential", () => {
 test("LUXOR_AUTH_TOKEN is not subject to the API key prefix guard", () => {
   const run = runAction(succeeded, 0, { LUXOR_AUTH_TOKEN: "plain-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth, "TENKI_AUTH_TOKEN=plain-token\nTENKI_API_KEY=api-secret\n");
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=plain-token\nTENKI_API_KEY=\n");
 });
 
 function runAction(json, exitCode = 0, extraEnv = {}) {
