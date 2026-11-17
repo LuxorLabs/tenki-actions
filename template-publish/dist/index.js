@@ -30923,18 +30923,26 @@ function getIDToken(aud) {
 //# sourceMappingURL=core.js.map
 ;// CONCATENATED MODULE: ./src/auth.ts
 const CREDENTIALS = ["AUTH_TOKEN", "API_KEY"];
+const API_KEY_PREFIXES = ["lx_", "tk_"];
 /**
  * Environment for the tenki CLI, resolving each credential on its own: a non-empty
- * LUXORAI_<name> wins over TENKI_<name>, passed under the TENKI_* name released CLIs read.
+ * LUXOR_<name> wins over TENKI_<name>, passed under the TENKI_* name released CLIs read.
  */
 function cliEnv(env = process.env) {
     const out = { ...env };
     for (const name of CREDENTIALS) {
-        const luxor = env[`LUXORAI_${name}`]?.trim();
+        const luxor = luxorCredential(env, name);
         if (luxor)
             out[`TENKI_${name}`] = luxor;
     }
     return out;
+}
+// LUXOR_API_KEY is also the Luxor Mining Pool key name, so only lx_/tk_ values count as set.
+function luxorCredential(env, name) {
+    const value = env[`LUXOR_${name}`]?.trim();
+    if (name === "API_KEY" && !API_KEY_PREFIXES.some((prefix) => value?.startsWith(prefix)))
+        return undefined;
+    return value;
 }
 
 ;// CONCATENATED MODULE: ./src/env.ts
@@ -31149,8 +31157,8 @@ async function run() {
     warning("template-publish is deprecated; migrate to LuxorLabs/tenki-actions/template-build@v1");
     const token = cliEnv().TENKI_AUTH_TOKEN;
     if (!token?.trim()) {
-        core_error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
-        throw new Error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+        core_error("missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+        throw new Error("missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
     }
     core_setSecret(token);
     await requireTenki();

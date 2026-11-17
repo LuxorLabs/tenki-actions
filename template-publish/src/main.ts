@@ -17,8 +17,8 @@ async function run(): Promise<void> {
 
   const token = cliEnv().TENKI_AUTH_TOKEN;
   if (!token?.trim()) {
-    core.error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
-    throw new Error("missing LUXORAI_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+    core.error("missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
+    throw new Error("missing LUXOR_AUTH_TOKEN or TENKI_AUTH_TOKEN env var");
   }
   core.setSecret(token);
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -68,34 +68,61 @@ const succeeded = {
   image_digest_ref: "node-api@sha256:abc",
 };
 
-test("LUXORAI_API_KEY wins over TENKI_API_KEY and keeps TENKI_AUTH_TOKEN", () => {
-  const run = runAction(succeeded, 0, { LUXORAI_API_KEY: "lx-secret", TENKI_AUTH_TOKEN: "legacy-token" });
+test("LUXOR_API_KEY wins over TENKI_API_KEY and keeps TENKI_AUTH_TOKEN", () => {
+  const run = runAction(succeeded, 0, { LUXOR_API_KEY: "lx_secret", TENKI_AUTH_TOKEN: "legacy-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=lx-secret\n");
-  assert.match(run.result.stdout, /::add-mask::lx-secret/);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=lx_secret\n");
+  assert.match(run.result.stdout, /::add-mask::lx_secret/);
   assert.match(run.result.stdout, /::add-mask::legacy-token/);
 });
 
-test("each LUXORAI_* credential replaces its TENKI_* counterpart", () => {
+test("each LUXOR_* credential replaces its TENKI_* counterpart", () => {
   const run = runAction(succeeded, 0, {
-    LUXORAI_AUTH_TOKEN: "lx-token",
-    LUXORAI_API_KEY: "lx-secret",
+    LUXOR_AUTH_TOKEN: "lx-token",
+    LUXOR_API_KEY: "lx_secret",
     TENKI_AUTH_TOKEN: "legacy-token",
   });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-  assert.equal(run.auth, "TENKI_AUTH_TOKEN=lx-token\nTENKI_API_KEY=lx-secret\n");
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=lx-token\nTENKI_API_KEY=lx_secret\n");
 });
 
-test("empty LUXORAI_* credentials fall back to TENKI_*", () => {
-  const run = runAction(succeeded, 0, { LUXORAI_API_KEY: " ", LUXORAI_AUTH_TOKEN: "", TENKI_AUTH_TOKEN: "legacy-token" });
+test("empty LUXOR_* credentials fall back to TENKI_*", () => {
+  const run = runAction(succeeded, 0, { LUXOR_API_KEY: " ", LUXOR_AUTH_TOKEN: "", TENKI_AUTH_TOKEN: "legacy-token" });
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
   assert.equal(run.auth, "TENKI_AUTH_TOKEN=legacy-token\nTENKI_API_KEY=api-secret\n");
 });
 
-test("TENKI_* credentials pass through unchanged without LUXORAI_*", () => {
+test("TENKI_* credentials pass through unchanged without LUXOR_*", () => {
   const run = runAction(succeeded);
   assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
   assert.equal(run.auth, "TENKI_AUTH_TOKEN=\nTENKI_API_KEY=api-secret\n");
+});
+
+test("LUXOR_API_KEY with a tk_ prefix is used", () => {
+  const run = runAction(succeeded, 0, { LUXOR_API_KEY: " tk_secret " });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=\nTENKI_API_KEY=tk_secret\n");
+  assert.match(run.result.stdout, /::add-mask::tk_secret/);
+});
+
+test("LUXOR_API_KEY without an lx_ or tk_ prefix is ignored in favor of TENKI_API_KEY", () => {
+  const run = runAction(succeeded, 0, { LUXOR_API_KEY: "pool-key-123" });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=\nTENKI_API_KEY=api-secret\n");
+  assert.doesNotMatch(run.result.stdout, /::add-mask::pool-key-123/);
+});
+
+test("non-prefixed LUXOR_API_KEY alone fails as a missing credential", () => {
+  const run = runAction(succeeded, 0, { LUXOR_API_KEY: "pool-key-123", TENKI_API_KEY: "" });
+  assert.equal(run.result.status, 1);
+  assert.match(run.result.stdout, /missing LUXOR_AUTH_TOKEN, LUXOR_API_KEY, TENKI_AUTH_TOKEN or TENKI_API_KEY env var/);
+  assert.equal(run.auth, "");
+});
+
+test("LUXOR_AUTH_TOKEN is not subject to the API key prefix guard", () => {
+  const run = runAction(succeeded, 0, { LUXOR_AUTH_TOKEN: "plain-token" });
+  assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+  assert.equal(run.auth, "TENKI_AUTH_TOKEN=plain-token\nTENKI_API_KEY=api-secret\n");
 });
 
 function runAction(json, exitCode = 0, extraEnv = {}) {
@@ -123,7 +150,7 @@ exit "$TENKI_TEST_EXIT"
     cwd: dir,
     encoding: "utf8",
     env: {
-      ...process.env,
+      ...cleanEnv(),
       PATH: `${binDir}:${process.env.PATH}`,
       GITHUB_OUTPUT: outputFile,
       TENKI_API_KEY: "api-secret",
@@ -143,8 +170,14 @@ exit "$TENKI_TEST_EXIT"
 
   return {
     result,
-    args: readFileSync(argsFile, "utf8").trim().split("\n"),
+    args: existsSync(argsFile) ? readFileSync(argsFile, "utf8").trim().split("\n") : [],
     outputs: readFileSync(outputFile, "utf8"),
-    auth: readFileSync(authFile, "utf8"),
+    auth: existsSync(authFile) ? readFileSync(authFile, "utf8") : "",
   };
+}
+
+function cleanEnv() {
+  const env = { ...process.env };
+  for (const name of ["TENKI_AUTH_TOKEN", "TENKI_API_KEY", "LUXOR_AUTH_TOKEN", "LUXOR_API_KEY"]) delete env[name];
+  return env;
 }
