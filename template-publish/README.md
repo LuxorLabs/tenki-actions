@@ -17,7 +17,7 @@ Drives sandbox template publishing through the `tenki` CLI. Add `setup-cli` firs
 ## Prerequisites
 
 - `tenki` is available on `$PATH`. The recommended setup is `LuxorLabs/tenki-actions/setup-cli@v1`.
-- `TENKI_AUTH_TOKEN` is set in `env`.
+- A credential is set in `env`: `LUXOR_AUTH_TOKEN`, `LUXOR_API_KEY`, `TENKI_AUTH_TOKEN` or `TENKI_API_KEY`.
 - For `mode: update`, `build-only`, and `publish-only`, you already know the template ID.
 
 ## One-time bootstrap (`mode: create`)
@@ -231,7 +231,7 @@ The action validates inputs before invoking `tenki`:
 - Non-create modes require `template-id`.
 - `update` requires at least one config field.
 - `build-only` and `publish-only` reject config fields.
-- Missing `TENKI_AUTH_TOKEN` fails before any CLI call. `LUXORAI_AUTH_TOKEN` is also accepted and, when non-empty, takes precedence over `TENKI_AUTH_TOKEN`.
+- A missing credential fails before any CLI call. Credentials resolve in the order `LUXOR_AUTH_TOKEN`, `LUXOR_API_KEY`, `TENKI_AUTH_TOKEN`, `TENKI_API_KEY`; the first non-empty one is used. `LUXOR_API_KEY` is only used when it starts with `lx_` or `tk_`; any other value is ignored.
 - Missing `tenki` fails with: `tenki not found on PATH; add 'LuxorLabs/tenki-actions/setup-cli@v1' step before this one`.
 
 If build fails, the action exits non-zero and does not call publish. Existing publications stay active.

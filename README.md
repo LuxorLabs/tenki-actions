@@ -57,7 +57,7 @@ Pin the CLI independently:
 
 ## Auth
 
-`template-build` reads `TENKI_API_KEY` or `TENKI_AUTH_TOKEN` from the job environment. `LUXORAI_API_KEY` and `LUXORAI_AUTH_TOKEN` are also accepted; each one, when non-empty, takes precedence over its `TENKI_*` counterpart. Do not pass credentials through `with:`.
+`template-build` reads its credential from the job environment. Credentials resolve in the order `LUXOR_AUTH_TOKEN`, `LUXOR_API_KEY`, `TENKI_AUTH_TOKEN`, `TENKI_API_KEY`; the first non-empty one is used. `LUXOR_API_KEY` is only used when it starts with `lx_` or `tk_`; any other value is ignored. Do not pass credentials through `with:`.
 
 Required secrets for most workflows:
 
