@@ -12,83 +12,181 @@ const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createReq
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
 ;// CONCATENATED MODULE: external "node:crypto"
 const external_node_crypto_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:crypto");
+;// CONCATENATED MODULE: external "node:os"
+const external_node_os_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:os");
 ;// CONCATENATED MODULE: external "node:path"
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
 ;// CONCATENATED MODULE: ./src/actions.ts
-// In-house stand-in for the few @actions/* calls below; the namespaces mirror
-// the toolkit APIs so call sites are unchanged.
+// In-house stand-in for the few @actions/* calls this action makes. Each
+// function follows @actions/core 3.0.1, @actions/exec 3.0.0 and @actions/io
+// 3.0.2 (their Linux/macOS code paths; tenki ships only for those), so call
+// sites are unchanged.
 
 
 
 
-const actions_escape = (value) => value.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-const command = (level, message) => void process.stdout.write(`::${level}::${actions_escape(message)}\n`);
-const inputEnv = (name) => `INPUT_${name.replace(/ /g, "_").toUpperCase()}`;
+
+// Workflow commands, as @actions/core writes them.
+const toCommandValue = (input) => input === null || input === undefined ? "" : typeof input === "string" || input instanceof String ? String(input) : JSON.stringify(input);
+const escapeData = (input) => toCommandValue(input).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+const escapeProperty = (input) => escapeData(input).replace(/:/g, "%3A").replace(/,/g, "%2C");
+function issueCommand(command, properties, message) {
+    let line = `::${command}`;
+    if (Object.keys(properties).length > 0) {
+        line += ` ${Object.entries(properties)
+            .filter(([, value]) => value)
+            .map(([key, value]) => `${key}=${escapeProperty(value)}`)
+            .join(",")}`;
+    }
+    process.stdout.write(`${line}::${escapeData(message)}${external_node_os_namespaceObject.EOL}`);
+}
+function issueFileCommand(command, message) {
+    const filePath = process.env[`GITHUB_${command}`];
+    if (!filePath)
+        throw new Error(`Unable to find environment variable for file command ${command}`);
+    if (!(0,external_node_fs_namespaceObject.existsSync)(filePath))
+        throw new Error(`Missing file at path: ${filePath}`);
+    (0,external_node_fs_namespaceObject.appendFileSync)(filePath, `${message}${external_node_os_namespaceObject.EOL}`, { encoding: "utf8" });
+}
+function prepareKeyValueMessage(key, value) {
+    const delimiter = `ghadelimiter_${(0,external_node_crypto_namespaceObject.randomUUID)()}`;
+    const convertedValue = toCommandValue(value);
+    if (key.includes(delimiter))
+        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+    if (convertedValue.includes(delimiter)) {
+        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+    }
+    return `${key}<<${delimiter}${external_node_os_namespaceObject.EOL}${convertedValue}${external_node_os_namespaceObject.EOL}${delimiter}`;
+}
 const core = {
-    getInput(name, options = {}) {
-        const value = (process.env[inputEnv(name)] ?? "").trim();
-        if (options.required && !value)
+    getInput(name, options) {
+        const value = process.env[`INPUT_${name.replace(/ /g, "_").toUpperCase()}`] || "";
+        if (options && options.required && !value)
             throw new Error(`Input required and not supplied: ${name}`);
-        return value;
+        if (options && options.trimWhitespace === false)
+            return value;
+        return value.trim();
     },
-    getMultilineInput(name) {
-        return core.getInput(name).split("\n").map((line) => line.trim()).filter(Boolean);
+    getMultilineInput(name, options) {
+        const inputs = core
+            .getInput(name, options)
+            .split("\n")
+            .filter((line) => line !== "");
+        if (options && options.trimWhitespace === false)
+            return inputs;
+        return inputs.map((line) => line.trim());
     },
     setOutput(name, value) {
-        const file = process.env.GITHUB_OUTPUT;
-        if (!file)
-            return command("set-output", `name=${name}::${value}`);
-        const delimiter = `ghadelimiter_${(0,external_node_crypto_namespaceObject.randomUUID)()}`;
-        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}<<${delimiter}\n${value}\n${delimiter}\n`);
+        if (process.env.GITHUB_OUTPUT || "")
+            return issueFileCommand("OUTPUT", prepareKeyValueMessage(name, value));
+        process.stdout.write(external_node_os_namespaceObject.EOL);
+        issueCommand("set-output", { name }, toCommandValue(value));
     },
-    setSecret: (value) => void (value && command("add-mask", value)),
-    addPath(dir) {
-        const file = process.env.GITHUB_PATH;
-        if (file)
-            (0,external_node_fs_namespaceObject.appendFileSync)(file, `${dir}\n`);
+    setSecret: (secret) => issueCommand("add-mask", {}, secret),
+    addPath(inputPath) {
+        if (process.env.GITHUB_PATH || "")
+            issueFileCommand("PATH", inputPath);
         else
-            command("add-path", dir);
+            issueCommand("add-path", {}, inputPath);
+        process.env.PATH = `${inputPath}${external_node_path_namespaceObject.delimiter}${process.env.PATH}`;
     },
-    info: (message) => void process.stdout.write(`${message}\n`),
-    warning: (message) => command("warning", message),
-    error: (message) => command("error", message),
-    setFailed: (message) => void ((process.exitCode = 1), command("error", message)),
+    info: (message) => void process.stdout.write(message + external_node_os_namespaceObject.EOL),
+    warning: (message) => issueCommand("warning", {}, message),
+    error: (message) => issueCommand("error", {}, message),
+    setFailed(message) {
+        process.exitCode = 1;
+        core.error(message);
+    },
 };
-const io = {
-    async which(tool, _required = false) {
-        for (const dir of (process.env.PATH ?? "").split(external_node_path_namespaceObject.delimiter)) {
-            if (!dir)
-                continue;
-            try {
-                (0,external_node_fs_namespaceObject.accessSync)((0,external_node_path_namespaceObject.join)(dir, tool), external_node_fs_namespaceObject.constants.X_OK);
-                return (0,external_node_path_namespaceObject.join)(dir, tool);
-            }
-            catch { }
+// PATH lookup, as @actions/io which() does it on Linux and macOS: only regular
+// files with an execute bit the current user can use match.
+function isUnixExecutable(stats) {
+    return ((stats.mode & 1) > 0 ||
+        ((stats.mode & 8) > 0 && process.getgid !== undefined && stats.gid === process.getgid()) ||
+        ((stats.mode & 64) > 0 && process.getuid !== undefined && stats.uid === process.getuid()));
+}
+function tryGetExecutablePath(filePath) {
+    let stats;
+    try {
+        stats = (0,external_node_fs_namespaceObject.statSync)(filePath);
+    }
+    catch (err) {
+        if (err.code !== "ENOENT") {
+            console.log(`Unexpected error attempting to determine if executable file exists '${filePath}': ${err}`);
         }
-        return null;
-    },
-};
+    }
+    return stats && stats.isFile() && isUnixExecutable(stats) ? filePath : "";
+}
+function isRooted(p) {
+    const normalized = (p || "").replace(/\/\/+/g, "/");
+    if (!normalized)
+        throw new Error('isRooted() parameter "p" cannot be empty');
+    return normalized.startsWith("/");
+}
+async function which(tool, check) {
+    if (!tool)
+        throw new Error("parameter 'tool' is required");
+    if (check) {
+        const result = await which(tool, false);
+        if (!result) {
+            throw new Error(`Unable to locate executable file: ${tool}. Please verify either the file path exists or the file can be found within a directory specified by the PATH environment variable. Also check the file mode to verify the file is executable.`);
+        }
+        return result;
+    }
+    if (isRooted(tool))
+        return tryGetExecutablePath(tool);
+    if (tool.includes(external_node_path_namespaceObject.sep))
+        return "";
+    for (const dir of (process.env.PATH || "").split(external_node_path_namespaceObject.delimiter)) {
+        if (!dir)
+            continue;
+        const filePath = tryGetExecutablePath((0,external_node_path_namespaceObject.join)(dir, tool));
+        if (filePath)
+            return filePath;
+    }
+    return "";
+}
+const io = { which };
 const exec = {
-    exec(cmd, args, options = {}) {
+    // Like @actions/exec: resolve the tool with which(), echo the command line
+    // and the child's stdout and stderr (both to stdout) unless silent, reject on
+    // a nonzero exit unless ignoreReturnCode, and reject if the process fails to
+    // start.
+    async exec(commandLine, args = [], options = {}) {
+        let toolPath = commandLine;
+        if (!isRooted(toolPath) && toolPath.includes("/"))
+            toolPath = (0,external_node_path_namespaceObject.resolve)(process.cwd(), toolPath);
+        toolPath = await which(toolPath, true);
         if (!options.silent)
-            process.stdout.write(`[command]${cmd} ${args.join(" ")}\n`);
-        return new Promise((resolve, reject) => {
-            const child = (0,external_node_child_process_namespaceObject.spawn)(cmd, args, { env: options.env ?? process.env, stdio: ["ignore", "pipe", "pipe"] });
-            const pipe = (source, listener) => void source.on("data", (chunk) => listener?.(chunk));
-            pipe(child.stdout, options.listeners?.stdout);
-            pipe(child.stderr, options.listeners?.stderr);
-            // A failed spawn rejects like @actions/exec does, so a caller that passes
-            // ignoreReturnCode still sees a missing binary as an error, not as a 127.
+            process.stdout.write(`[command]${toolPath}${args.map((arg) => ` ${arg}`).join("")}${external_node_os_namespaceObject.EOL}`);
+        return new Promise((resolvePromise, reject) => {
+            const child = (0,external_node_child_process_namespaceObject.spawn)(toolPath, args, { env: options.env });
+            let done = false;
+            child.stdout.on("data", (data) => {
+                options.listeners?.stdout?.(data);
+                if (!options.silent)
+                    process.stdout.write(data);
+            });
+            child.stderr.on("data", (data) => {
+                options.listeners?.stderr?.(data);
+                if (!options.silent)
+                    process.stdout.write(data);
+            });
             child.on("error", (error) => {
-                command("error", `${cmd} failed: ${error.message}`);
-                reject(error);
+                if (done)
+                    return;
+                done = true;
+                reject(new Error(`There was an error when attempting to execute the process '${toolPath}'. This may indicate the process failed to start. Error: ${error.message}`));
             });
             child.on("close", (code) => {
-                if (code !== 0 && code !== null && !options.ignoreReturnCode) {
-                    reject(new Error(`${cmd} exited with code ${code}`));
+                if (done)
+                    return;
+                done = true;
+                if (code !== 0 && !options.ignoreReturnCode) {
+                    reject(new Error(`The process '${toolPath}' failed with exit code ${code}`));
                     return;
                 }
-                resolve(code ?? 1);
+                resolvePromise(code);
             });
         });
     },
