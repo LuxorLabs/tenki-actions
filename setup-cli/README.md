@@ -72,6 +72,6 @@ curl -fsSL https://tenki.cloud/install.sh | bash
 
 For pinned versions it passes `--version X.Y.Z`. The installer follows the `tenki.cloud` redirect to public GCS, downloads the raw binary, and writes it to `$TENKI_INSTALL_DIR/tenki`.
 
-Pinned versions are cached through `@actions/tool-cache`. `latest` is not cached because it is a moving target. The action adds the install or cached directory to `$PATH`.
+Pinned versions are cached in the runner tool cache (`$RUNNER_TOOL_CACHE`), in the same layout `@actions/tool-cache` used. `latest` is not cached because it is a moving target. The action adds the install or cached directory to `$PATH`.
 
 No Tenki secret or GitHub token is required to install the CLI. Integrity is HTTPS plus the public GCS bucket, matching the deployed `tenki.cloud/install.sh` behavior.

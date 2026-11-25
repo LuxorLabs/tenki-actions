@@ -6,13 +6,9 @@
   "packageManager": "pnpm@10.22.0",
   "scripts": {
     "build": "ncc build src/main.ts -o dist --source-map",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit && node --test test/*.test.mjs"
   },
-  "dependencies": {
-    "@actions/core": "3.0.1",
-    "@actions/exec": "3.0.0",
-    "@actions/tool-cache": "4.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "25.6.2",
     "@vercel/ncc": "0.38.4",
