@@ -1,5 +1,4 @@
-import * as exec from "@actions/exec";
-import * as io from "@actions/io";
+import { exec, io } from "./actions.js";
 import { cliEnv } from "./auth.js";
 
 export interface TemplateResult {

@@ -1,4 +1,4 @@
-import * as core from "@actions/core";
+import { core } from "./actions.js";
 import { cliEnv } from "./auth.js";
 import { readInputs } from "./inputs.js";
 import { requireTenki, TenkiCommandError, tenkiJSON, type TemplateBuildResult } from "./tenki.js";

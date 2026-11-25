@@ -1,4 +1,4 @@
-import * as core from "@actions/core";
+import { core } from "./actions.js";
 
 export function collectForwardedEnv(input: string, prefix: string): Map<string, string> {
   const result = new Map<string, string>();

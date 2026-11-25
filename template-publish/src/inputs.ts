@@ -1,4 +1,4 @@
-import * as core from "@actions/core";
+import { core } from "./actions.js";
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 
